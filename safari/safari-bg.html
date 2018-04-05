@@ -1,12 +1,64 @@
 <!DOCTYPE HTML>
 <html><head><title>global page</title><meta charset="UTF-8">
 <script type="text/javascript">
+var newMenus = []
+, menuCallbacks = []
+, menus = {}
+
+
+safari.application.addEventListener("contextmenu", function(e) {
+	if (newMenus.length && safari.extension.settings.menus) {
+		var m
+		, i = 0
+		for (; m = newMenus[i++]; ) {
+			menus[m.id] = m
+			if (m.type === "separator") {
+				e.contextMenu.appendSeparator()
+			} else {
+				e.contextMenu.appendContextMenuItem(m.id, m.title)
+			}
+		}
+		newMenus.length = 0
+	}
+}, false)
+
+safari.application.addEventListener("command", function(e) {
+	var fn
+	, i = 0
+	for (; fn = menuCallbacks[i++]; ) {
+		fn({
+			menuItemId: e.command
+		}, {
+			id: safari.application.activeBrowserWindow
+		})
+	}
+}, false)
+
+safari.application.addEventListener("validate", function(e) {
+	// safari.application.activeBrowserWindow
+	var m = menus[e.command]
+	// Disable the button if there is no URL loaded in the tab
+	if (!e.target.browserWindow.activeTab.url) {
+		e.target.disabled = true
+	} else if (m) {
+		e.target.disabled = !e.userInfo.selection
+	}
+}, false)
 
 this.chrome = this.chrome || {
 	contextMenus: {
-		create: function() {},
+		create: function(menu) {
+			newMenus.push(menu)
+		},
 		onClicked: {
-			addListener: function() {}
+			addListener: function(fn) {
+				menuCallbacks.push(fn)
+			}
+		}
+	},
+	pageAction: {
+		onClicked: {
+			addListener: function(tab) {}
 		}
 	},
 	runtime: {
@@ -15,6 +67,29 @@ this.chrome = this.chrome || {
 				safari.application.addEventListener("message", function(e) {
 					cb(e.message, { tab: { id: e.target.page }})
 				})
+			}
+		}
+	},
+	storage: {
+		local: {
+			get: function(defaults, next) {
+				var key, val
+				, res = Object.create(defaults)
+				for (key in defaults) {
+					val = safari.extension.settings[key]
+					if (val != null) res[key] = val
+				}
+				next(res)
+			},
+			set: function(opts) {
+				var key, val
+				for (key in opts) {
+					safari.extension.settings[key] = opts[key]
+				}
+			}
+		},
+		onChanged: {
+			addListener: function(fn) {
 			}
 		}
 	},

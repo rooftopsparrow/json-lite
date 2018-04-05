@@ -23,5 +23,13 @@ if (!this.chrome) {
 			eval(e.message)
 		}
 	}, false)
+
+	// store information on the event for background page
+	document.addEventListener("contextmenu", function(e) {
+		safari.self.tab.setContextMenuEventUserInfo(e, {
+			target: e.target,
+			selection: window.getSelection() + ""
+		)
+	}, false)
 }
 
